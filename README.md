@@ -1,0 +1,2 @@
+# security_similarity_query
+实现安全相似性查询的算法
