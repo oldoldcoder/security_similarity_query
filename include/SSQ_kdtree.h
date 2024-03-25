@@ -29,7 +29,8 @@ typedef struct tree_node{
             int divide_dim;
             BIGNUM * divide_val;
             /**--------加密之后---------*/
-            eTPSS * en_divide_dim;
+
+            eTPSS ** en_divide_dim;
             eTPSS * en_divide_val;
         };
         struct {

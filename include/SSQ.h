@@ -13,6 +13,8 @@
 typedef struct {
     int dim;
     BIGNUM ** single_data;
+    // kArr需要使用
+    eTPSS ** en_data;
 }dim_data;
 typedef struct {
     int n;// 数据的总数
