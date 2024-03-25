@@ -25,6 +25,8 @@ typedef struct {
     int dim;
     // 值
     BIGNUM ** val;
+    // 加密之后的val
+    eTPSS ** en_val;
     // 指向两个数据点
     BIGNUM ** xi;
     // 加密之后的xi点
@@ -41,32 +43,3 @@ RESULT RSQ_generate_k_ref_points(SSQ_data  * kArr,int k,int dim);
 RESULT RSQ_compute_vi(v_data ** res, SSQ_data * data,SSQ_data * kArr);
 // 释放vi的点
 RESULT RSQ_free_vi(v_data ** target ,int vn);
-
-// 异或查看最长公共qianzhui
-char* longestCommonPrefix(char** strs, int strsSize) {
-    char * arr = (char * ) malloc(sizeof (char) * 200);
-    int minLen = strlen(strs[0]);
-    memset(arr,0,sizeof(char) * strsSize );
-    arr = strs[0];
-    for(int i = 1 ; i < strsSize ; ++i){
-        int len = strlen(strs[i]);
-        if(len > minLen)
-            minLen = len;
-        // 遍历最短的进行异或操作
-        for(int j = 0 ; j < minLen ; ++j){
-            arr[j] = arr[j] ^ strs[i][j];
-        }
-    }
-    char * res = malloc(sizeof (char )* minLen);
-    // 充满结束符
-    memset(arr,0,sizeof(char ) * minLen );
-    // 在minlen内前面为0的
-    for(int i = 0 ; i < minLen ; ++i){
-        // 相同的字符
-        if(arr[i] == 0){
-            res[i] = strs[0][i];
-        }else
-            break;
-    }
-    return res;
-}
