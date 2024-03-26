@@ -323,6 +323,44 @@ static void kdtree_range_search_o(tree_node * node,search_req * req,search_resp 
     if(node == NULL)
         return;
     if(node->is_leaf_node == TRUE){
+        // 如果是根节点的情况,判断距离的平方是否小于等于τ的平方
+        leaf_val * tmp = node->data_root;
+        eTPSS taoo;
+        init_eTPSS(&taoo);
+        et_Mul(&taoo,req->tao,req->tao);
+        eTPSS t1,t2,sum;
+        init_eTPSS(&t1);
+        init_eTPSS(&t2);
+        init_eTPSS(&sum);
+        while(tmp != NULL){
+            leaf_val  * next = tmp->next;
+            // 计算距离
+            et_Share(&sum,ZERO);
+            for(int i = 0 ; i < node->dim ; ++i){
+                et_Sub_cal_res_o(&t1,tmp->val->en_xi[i],req->y[i]);
+                // 乘法
+                et_Mul(&t2,&t1,&t1);
+                // 加和
+                et_Add(&sum,&sum,&t2);
+            }
+            int ret = -2;
+            // 判断大小,小于等于tao平方加入我们的结果
+            et_Sub(&ret,&sum,&taoo);
+            if(ret != 0){
+                res_node * new = (res_node *) malloc(sizeof (res_node));
+                new->next = NULL;
+                // 这个节点数据的加密数据
+                new->data = tmp->val->en_xi;
+                if(resp->root == NULL) {
+                    resp->root = new;
+                    resp->now = new;
+                }else{
+                    resp->now->next = new;
+                    resp->now = new;
+                }
+            }
+            tmp = next;
+        }
 
         return;
     }

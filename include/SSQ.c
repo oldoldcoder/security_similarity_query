@@ -9,7 +9,7 @@
 /**------------------------方法的实现---------------------------*/
 // 读取数据
 RESULT RSQ_read_data(SSQ_data * data){
-    FILE  * file = fopen(PTREEB_DATA_FILE,"r");
+    FILE  * file = fopen(RSQ_DATA_FILE,"r");
     if(file == NULL){
         perror("Error opening file");
         return ERROR;
