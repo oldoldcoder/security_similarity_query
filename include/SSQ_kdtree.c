@@ -361,8 +361,64 @@ RESULT kdtree_range_search(kd_tree * root, search_req * req, search_resp * resp)
 // 销毁查询的参数
 RESULT kdtree_free_search_param(search_req * req,search_resp * resp){
     // 主要销毁req内部的参数
+    int dim = req->dim;
+    free_eTPSS(req->tao);
+    free(req->tao);
+    for(int i = 0 ; i < dim ; ++i){
+        free_eTPSS(req->y[i]);
+        free(req->y[i]);
+    }
+    free(req->y);
+    for(int i = 0 ; i < dim ; ++i){
+        free_eTPSS(req->range[i][0]);
+        free_eTPSS(req->range[i][1]);
+        free(req->range[i][0]);
+        free(req->range[i][1]);
+        free(req->range[i]);
+    }
+    free(req->range);
+    // 释放resp的参数
+    res_node * node = resp->root;
+    while(node != NULL){
+        res_node * tmp = node->next;
+        free(node);
+        node = tmp;
+    }
+    return SUCCESS;
 }
 // 转换参数到文件中去
-RESULT kdtree_tsf_resp_to_file(search_resp * resp){
-    // 转换到文件中去
+RESULT kdtree_tsf_resp_to_file(search_req  * req,search_resp * resp){
+    FILE  * file = fopen(RESP_FILE_PATH,"w");
+    if(file == NULL){
+        perror("Error opening file");
+        return ERROR;
+    }
+    int dim  = resp->dim;
+    BIGNUM * tmp = BN_CTX_get(CTX);
+    char *str ;
+    fprintf(file,"The search rep\ndim:%d\nreq data: ",resp->dim);
+    for(int i = 0 ; i < dim ; ++i){
+        et_Recover(tmp,req->y[i]);
+        str = BN_bn2dec(tmp);
+        fprintf(file,"%s ",str);
+    }
+    et_Recover(tmp,req->tao);
+    str = BN_bn2dec(tmp);
+    fprintf(file,"\ntao: %s\nsearch res:\n",str);
+    res_node *root = resp->root;
+    int idx = 0;
+    while(root != NULL){
+        fprintf(file,"%d. ",idx);
+        for(int i = 0 ; i < dim ; ++i){
+            et_Recover(tmp,root->data[i]);
+            str = BN_bn2dec(tmp);
+            fprintf(file,"%s ",str);
+        }
+        idx++;
+        fprintf(file,"\n");
+        root = root->next;
+    }
+    // 关闭文件
+    fclose(file);
+    return SUCCESS;
 }

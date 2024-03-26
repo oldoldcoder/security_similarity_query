@@ -90,4 +90,4 @@ RESULT kdtree_range_search(kd_tree * root, search_req * req, search_resp * resp)
 // 销毁查询的参数
 RESULT kdtree_free_search_param(search_req * req,search_resp * resp);
 // 转换参数到文件中去
-RESULT kdtree_tsf_resp_to_file(search_resp * resp);
+RESULT kdtree_tsf_resp_to_file(search_req  * req,search_resp * resp);
