@@ -55,6 +55,7 @@ typedef struct {
     int dim;
     eTPSS ** y;
     // 定义τ的长度
+    int range_dim;
     eTPSS *** range;
     eTPSS * tao;
 }search_req;
@@ -84,7 +85,7 @@ RESULT kdtree_destory_tree(kd_tree * tree);
 // 加密树上传服务器，假方法，只加密不上传
 RESULT kdtree_upload_server(kd_tree * tree);
 // 初始化查询的参数，同时计算范围查询的令牌
-RESULT kdtree_init_search(search_req * req,search_resp * resp,int dim,SSQ_data * kArr);
+RESULT kdtree_init_search(search_req * req,search_resp * resp,SSQ_data * kArr,int ddim,int kn);
 // 进行查询
 RESULT kdtree_range_search(kd_tree * root, search_req * req, search_resp * resp);
 // 销毁查询的参数

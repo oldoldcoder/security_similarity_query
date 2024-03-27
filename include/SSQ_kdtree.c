@@ -16,6 +16,7 @@ static void swap_v_data(v_data ** data,int i,int j){
 // 树的初始化
 RESULT kdtree_init(kd_tree * root,int dim, int n){
     root->dim = dim;
+    root->root = (tree_node *) malloc(sizeof (tree_node) );
     kdtree_node_init(root->root,FALSE,-1,NULL,dim,0,NULL,NULL);
     return SUCCESS;
 }
@@ -68,13 +69,18 @@ RESULT kdtree_create(tree_node * node,v_data ** total,int n,int dim,int dir,int 
         // 将目标维度的所有值加和
         BN_add(sum,sum,total[i]->val[node->divide_dim]);
     }
+
+    // debug
+    printDebugInfo(sum,NULL,__func__ ,__LINE__,"负责divide的值");
     BIGNUM  * tmp = BN_CTX_get(CTX);
-    BN_set_word(tmp,node->divide_dim);
+    BN_set_word(tmp,idx_rig - idx_lef + 1);
     if(node->divide_val == NULL){
         node->divide_val = BN_CTX_get(CTX);
     }
     // 计算得到的分割值
     BN_div(node->divide_val,NULL,sum,tmp,CTX);
+    // debug
+    printDebugInfo(node->divide_val,NULL,__func__ ,__LINE__,"负责divide的值");
 
     int idxL = idx_lef,idxR = idx_rig;
     while(idxL <= idxR){
@@ -140,21 +146,24 @@ static void kdtree_encode_node(tree_node * node){
         leaf_val *tmp = node->data_root;
         while(tmp != NULL){
             v_data * da = tmp->val;
-            int dim = da->dim;
+            int kArr_dim = da->dim;
+            int xi_dim = da->xi_dim;
             if(da->en_val == NULL)
-                da->en_val = (eTPSS **) malloc(sizeof (eTPSS *) * dim);
+                da->en_val = (eTPSS **) malloc(sizeof (eTPSS *) * kArr_dim);
             if(da->en_xi == NULL)
-                da->en_xi = (eTPSS **) malloc(sizeof (eTPSS *) * dim);
-            for(int i = 0 ; i < dim ; ++i){
+                da->en_xi = (eTPSS **) malloc(sizeof (eTPSS *) * xi_dim);
+            for(int i = 0 ; i < kArr_dim ; ++i){
                 eTPSS * a = (eTPSS *) malloc(sizeof (eTPSS));
-                eTPSS * b = (eTPSS *) malloc(sizeof (eTPSS));
                 init_eTPSS(a);
-                init_eTPSS(b);
                 et_Share(a,da->val[i]);
-                et_Share(b,da->xi[i]);
                 da->en_val[i] = a;
-                da->en_xi[i] = b;
 ;            }
+            for(int i = 0 ; i < xi_dim ; ++i){
+                eTPSS * b = (eTPSS *) malloc(sizeof (eTPSS));
+                init_eTPSS(b);
+                et_Share(b,da->xi[i]);
+                da->en_xi[i] = b;
+            }
             tmp = tmp->next;
         }
     }else{
@@ -167,10 +176,7 @@ static void kdtree_encode_node(tree_node * node){
             if(i != node->divide_dim){
                 et_Share(node->en_divide_dim[i],ZERO);
             }else{
-                BIGNUM * tmp = BN_CTX_get(CTX);
-                BN_set_word(tmp,node->divide_dim);
-                et_Share(node->en_divide_dim[i],tmp);
-                BN_clear(tmp);
+                et_Share(node->en_divide_dim[i],ONE);
             }
         }
         init_eTPSS(node->en_divide_val);
@@ -191,23 +197,25 @@ RESULT kdtree_upload_server(kd_tree * tree){
     return SUCCESS;
 }
 // 初始化查询的参数
-RESULT kdtree_init_search(search_req * req,search_resp * resp,int dim,SSQ_data * kArr){
+RESULT kdtree_init_search(search_req * req,search_resp * resp,SSQ_data * kArr,int ddim,int kn){
     FILE  * file = fopen(RSQ_FILE_PATH,"r");
     if(file == NULL){
         perror("Error opening file");
         return ERROR;
     }
-    req->dim = dim;
+    req->dim = ddim;
+    req->range_dim = kn;
     // 填充Y的值
-    req->y = (eTPSS **) malloc(dim * sizeof(eTPSS *));
-    req->range = (eTPSS ***) malloc(dim * sizeof (eTPSS **));
+    req->y = (eTPSS **) malloc(ddim * sizeof(eTPSS *));
+    req->range = (eTPSS ***) malloc(kn * sizeof (eTPSS **));
     // 填充数值
-    for(int i = 0 ; i < dim ; ++i){
+    for(int i = 0 ; i < ddim ; ++i){
         eTPSS  * d  = (eTPSS *) malloc(sizeof (eTPSS));
         init_eTPSS(d);
         // 读取内容
         req->y[i] = d;
-
+    }
+    for(int i = 0 ; i < kn ; ++i){
         req->range[i] = (eTPSS **) malloc(2 * sizeof (eTPSS *));
         req->range[i][0] = (eTPSS *) malloc(sizeof (eTPSS));
         req->range[i][1] = (eTPSS *) malloc(sizeof (eTPSS));
@@ -247,7 +255,7 @@ RESULT kdtree_init_search(search_req * req,search_resp * resp,int dim,SSQ_data *
         BN_clear(tmp);
         token = strtok(NULL, ",");
     }
-    if(idx != dim){
+    if(idx != ddim){
         fprintf(stderr,"Error reading data dimension from file\n");
         return ERROR;
     }
@@ -259,7 +267,7 @@ RESULT kdtree_init_search(search_req * req,search_resp * resp,int dim,SSQ_data *
     for(int i = 0 ; i < kArr->n ; ++i){
         et_Share(&sum,ZERO);
         // 计算range 的范围
-        for(int j = 0 ; j < dim ; ++j){
+        for(int j = 0 ; j < ddim ; ++j){
             // 计算每个
             et_Sub_cal_res_o(&tmp,kArr->total_data[i]->en_data[j],req->y[j]);
             et_Mul(&tmp2,&tmp,&tmp);
@@ -267,9 +275,11 @@ RESULT kdtree_init_search(search_req * req,search_resp * resp,int dim,SSQ_data *
         }
         // 减tao是最小值
         et_Sub_cal_res_o(&tmp,&sum,req->tao);
+        printDebugInfo(NULL,&tmp,__func__ ,__LINE__,"-tao的数值");
         et_Copy(req->range[i][0],&tmp);
         // 加上tao是范围的最大值
         et_Add(&tmp,&sum,req->tao);
+        printDebugInfo(NULL,&tmp,__func__ ,__LINE__,"+tao的数值");
         et_Copy(req->range[i][1],&tmp);
     }
     free_eTPSS(&tmp);
@@ -278,6 +288,7 @@ RESULT kdtree_init_search(search_req * req,search_resp * resp,int dim,SSQ_data *
 
     /*---------------设置数据resp----------------*/
     resp->root = resp->now = NULL;
+    resp->dim = req->dim;
     return SUCCESS;
 }
 /**
@@ -295,19 +306,23 @@ static int judge_direct(eTPSS ** dim_vector,eTPSS * divide_val,eTPSS *** range,i
     init_eTPSS(&sum);
     init_eTPSS(&tmp);
     et_Share(&sum,ZERO);
+    printDebugInfo(NULL,divide_val,__func__ ,__LINE__,"divide val的数值");
     for(int i = 0 ; i < dim ; ++i){
         et_Mul(&tmp,dim_vector[i],range[i][0]);
         et_Add(&sum,&sum,&tmp);
     }
+
+    printDebugInfo(NULL,&sum,__func__ ,__LINE__,"最小值的加和");
     // 判断大小
-    et_Sub(&res1,&sum,divide_val);
+    et_Sub(&res1,divide_val,&sum);
     et_Share(&sum,ZERO);
     for(int i = 0 ; i < dim ; ++i){
         et_Mul(&tmp,dim_vector[i],range[i][1]);
         et_Add(&sum,&sum,&tmp);
     }
 
-    et_Sub(&res2,&sum,divide_val);
+    printDebugInfo(NULL,&sum,__func__ ,__LINE__,"最大值的加和");
+    et_Sub(&res2,divide_val,&sum);
     if(res1 == 0 && res2 == 0)
         return 1;
     else if((res1 == 0 &&res2 == 1) || (res1 == -1 &&res2 == 1) || (res1 == 0 && res2 == -1) || (res1 == -1 && res2 == -1))
@@ -336,7 +351,7 @@ static void kdtree_range_search_o(tree_node * node,search_req * req,search_resp 
             leaf_val  * next = tmp->next;
             // 计算距离
             et_Share(&sum,ZERO);
-            for(int i = 0 ; i < node->dim ; ++i){
+            for(int i = 0 ; i < tmp->val->xi_dim ; ++i){
                 et_Sub_cal_res_o(&t1,tmp->val->en_xi[i],req->y[i]);
                 // 乘法
                 et_Mul(&t2,&t1,&t1);

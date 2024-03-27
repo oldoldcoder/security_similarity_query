@@ -29,6 +29,7 @@ typedef struct {
     BIGNUM ** val;
     // 加密之后的val
     eTPSS ** en_val;
+    int xi_dim;
     // 指向两个数据点
     BIGNUM ** xi;
     // 加密之后的xi点

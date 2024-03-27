@@ -9,7 +9,7 @@
 /**------------------------方法的实现---------------------------*/
 // 读取数据
 RESULT RSQ_read_data(SSQ_data * data){
-    FILE  * file = fopen(RSQ_DATA_FILE,"r");
+    FILE  * file = fopen(SSQ_DATA_FILE,"r");
     if(file == NULL){
         perror("Error opening file");
         return ERROR;
@@ -88,6 +88,15 @@ RESULT RSQ_free_data(SSQ_data * data){
 }
 // 随机生成K个参考点
 RESULT RSQ_generate_k_ref_points(SSQ_data  * kArr,int k,int dim){
+
+    // 随机的范围，2^64取的有点问题
+    BIGNUM * RANGE = BN_CTX_get(CTX);
+    BIGNUM * n = BN_CTX_get(CTX);
+    BN_set_word(n,20);
+    BN_set_word(RANGE,2);
+    BN_exp(RANGE, RANGE, n, CTX);
+
+
     // 随机生成K个参考点
     kArr->n = k;
     kArr->dim = dim;
@@ -110,7 +119,7 @@ RESULT RSQ_generate_k_ref_points(SSQ_data  * kArr,int k,int dim){
         // 在dim范围内给随机值
         for(int j = 0 ; j < dim ; ++j){
             BIGNUM * rn = BN_CTX_get(CTX);
-            if(!BN_rand_range(rn,RANDOM_RANGE)){
+            if(!BN_rand_range(rn,RANGE)){
                 fprintf(stderr,"随机生成BIGNUM出错\n");
                 return ERROR;
             }
@@ -128,10 +137,15 @@ RESULT RSQ_generate_k_ref_points(SSQ_data  * kArr,int k,int dim){
             kArr->total_data[i]->en_data[j] = t;
         }
     }
+
+    BN_clear(RANGE);
+    BN_clear(n);
+
     return SUCCESS;
 }
 // 计算为Vi向量的集合
 RESULT RSQ_compute_vi(v_data ** res, SSQ_data * data,SSQ_data * kArr){
+
     // data的全体向量对于karr进行一个计算距离，目前距离除了不开根号，没有乘二的操作
     //TODO 目前没有括号外乘2的操作
     int dn = data->n;
@@ -141,6 +155,8 @@ RESULT RSQ_compute_vi(v_data ** res, SSQ_data * data,SSQ_data * kArr){
     BIGNUM * sum = BN_CTX_get(CTX);
     for(int i = 0 ; i < dn ; ++i){
         res[i] = (v_data *) malloc(sizeof (v_data));
+        res[i]->en_val = NULL;
+        res[i]->en_xi = NULL;
         res[i]->dim = kn;
         res[i]->val = (BIGNUM **) malloc(sizeof (BIGNUM *) * kn);
         if(res[i]->val == NULL){
@@ -149,6 +165,7 @@ RESULT RSQ_compute_vi(v_data ** res, SSQ_data * data,SSQ_data * kArr){
         }
         // k个维度对应计算的值都是你这一个xi
         res[i]->xi = data->total_data[i]->single_data;
+        res[i]->xi_dim = data->total_data[i]->dim;
         // 计算每个的距离d
         for(int j = 0 ; j < kn; ++j){
             BN_set_word(sum,0);

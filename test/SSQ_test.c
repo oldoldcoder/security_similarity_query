@@ -8,7 +8,7 @@
 #include "stdio.h"
 #include "SSQ_kdtree.h"
 #include "SSQ.h"
-
+#include "utils.h"
 
 int main(){
     // 初始化常量
@@ -25,18 +25,19 @@ int main(){
     RSQ_compute_vi(vd,&data,&kArr);
     /**-------------------构建树------------------*/
     int dn = data.n;
-    int dim = data.dim;
+    int ddim = data.dim;
+    int kn = kArr.n;
     kd_tree tree;
-    kdtree_init(&tree,dim,dn);
+    kdtree_init(&tree,kn,dn);
     // 创建树
-    kdtree_create(tree.root,vd,dn,dim,0,0,dn - 1);
+    kdtree_create(tree.root,vd,dn,kn,0,0,dn - 1);
     // 加密树
     kdtree_upload_server(&tree);
     /**------------------- 查询 ------------------*/
     search_req req;
     search_resp resp;
     // 初始化查询的参数，计算范围查询的令牌
-    kdtree_init_search(&req,&resp,dim,&kArr);
+    kdtree_init_search(&req,&resp,&kArr,ddim,kn);
     // 进行查询
     kdtree_range_search(&tree,&req,&resp);
     kdtree_tsf_resp_to_file(&req,&resp);
