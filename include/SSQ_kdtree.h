@@ -75,7 +75,7 @@ typedef struct search_resp{
 
 /*-----------------------------方法定义-----------------------------*/
 // 树的初始化
-RESULT kdtree_init(kd_tree * root,int dim, int n);
+RESULT kdtree_init(kd_tree * root,int dim);
 // 树的节点的初始化
 RESULT kdtree_node_init(tree_node * node,int is_leaf_node,int divide_dim,BIGNUM * divide_val,int dim,int dir,tree_node * left,tree_node * right);
 // 创建树

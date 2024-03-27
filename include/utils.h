@@ -21,3 +21,6 @@
 #define SSQ_DATA_FILE "/root/heqi/encryption_algorithm/ssq/data/SSQ_data_file.txt"
 
 void printDebugInfo(BIGNUM * res,eTPSS * et,const char * funcName,int line,char * paramName);
+// 牛顿法迭代开平方
+
+void sqrt_bignum(const BIGNUM *num,BIGNUM * x);

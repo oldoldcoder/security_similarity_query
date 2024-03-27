@@ -14,7 +14,7 @@ static void swap_v_data(v_data ** data,int i,int j){
 }
 
 // 树的初始化
-RESULT kdtree_init(kd_tree * root,int dim, int n){
+RESULT kdtree_init(kd_tree * root,int dim){
     root->dim = dim;
     root->root = (tree_node *) malloc(sizeof (tree_node) );
     kdtree_node_init(root->root,FALSE,-1,NULL,dim,0,NULL,NULL);
@@ -70,8 +70,6 @@ RESULT kdtree_create(tree_node * node,v_data ** total,int n,int dim,int dir,int 
         BN_add(sum,sum,total[i]->val[node->divide_dim]);
     }
 
-    // debug
-    printDebugInfo(sum,NULL,__func__ ,__LINE__,"负责divide的值");
     BIGNUM  * tmp = BN_CTX_get(CTX);
     BN_set_word(tmp,idx_rig - idx_lef + 1);
     if(node->divide_val == NULL){
@@ -80,7 +78,7 @@ RESULT kdtree_create(tree_node * node,v_data ** total,int n,int dim,int dir,int 
     // 计算得到的分割值
     BN_div(node->divide_val,NULL,sum,tmp,CTX);
     // debug
-    printDebugInfo(node->divide_val,NULL,__func__ ,__LINE__,"负责divide的值");
+    printDebugInfo(node->divide_val,NULL,__func__ ,__LINE__,"分割的divide的值");
 
     int idxL = idx_lef,idxR = idx_rig;
     while(idxL <= idxR){
@@ -235,7 +233,6 @@ RESULT kdtree_init_search(search_req * req,search_resp * resp,SSQ_data * kArr,in
     req->tao = (eTPSS *) malloc(sizeof (eTPSS));
     init_eTPSS(req->tao);
     et_Share(req->tao,t);
-    BN_clear(t);
 
     /*---------------读取数据y----------------*/
     char *line = NULL;
@@ -243,6 +240,8 @@ RESULT kdtree_init_search(search_req * req,search_resp * resp,SSQ_data * kArr,in
     getline(&line, &len, file);
     int idx = 0;
     char *token = strtok(line, ",");
+    // 未加密的y的数据
+    BIGNUM ** de_y_data = (BIGNUM **) malloc(sizeof (BIGNUM *) * ddim);
     while (token != NULL) {
         BIGNUM *tmp = BN_CTX_get(CTX);
         fflush(stdout);
@@ -251,8 +250,8 @@ RESULT kdtree_init_search(search_req * req,search_resp * resp,SSQ_data * kArr,in
             fprintf(stdout,"file have some error format about data\n");
             return ERROR;
         }
+        de_y_data[idx]  = tmp;
         et_Share(req->y[idx++],tmp);
-        BN_clear(tmp);
         token = strtok(NULL, ",");
     }
     if(idx != ddim){
@@ -260,31 +259,44 @@ RESULT kdtree_init_search(search_req * req,search_resp * resp,SSQ_data * kArr,in
         return ERROR;
     }
     /*---------------计算范围查询的数据----------------*/
-    eTPSS tmp,tmp2,sum;
-    init_eTPSS(&tmp);
-    init_eTPSS(&tmp2);
-    init_eTPSS(&sum);
+    BIGNUM *tmp = BN_CTX_get(CTX);
+    BIGNUM * sum = BN_CTX_get(CTX);
+    BIGNUM * tmp2 = BN_CTX_get(CTX);
+    BIGNUM * sqrt_sum = BN_CTX_get(CTX);
     for(int i = 0 ; i < kArr->n ; ++i){
-        et_Share(&sum,ZERO);
+        BN_set_word(sum,0);
         // 计算range 的范围
         for(int j = 0 ; j < ddim ; ++j){
-            // 计算每个
-            et_Sub_cal_res_o(&tmp,kArr->total_data[i]->en_data[j],req->y[j]);
-            et_Mul(&tmp2,&tmp,&tmp);
-            et_Add(&sum,&sum,&tmp2);
+            BN_sub(tmp,kArr->total_data[i]->single_data[j],de_y_data[j]);
+            BN_mul(tmp2,tmp,tmp,CTX);
+            BN_add(sum,sum,tmp2);
         }
-        // 减tao是最小值
-        et_Sub_cal_res_o(&tmp,&sum,req->tao);
-        printDebugInfo(NULL,&tmp,__func__ ,__LINE__,"-tao的数值");
-        et_Copy(req->range[i][0],&tmp);
-        // 加上tao是范围的最大值
-        et_Add(&tmp,&sum,req->tao);
-        printDebugInfo(NULL,&tmp,__func__ ,__LINE__,"+tao的数值");
-        et_Copy(req->range[i][1],&tmp);
+        printDebugInfo(sum,NULL,__func__ ,__LINE__,"未平方根之前的值");
+        // 计算减法的平方
+        sqrt_bignum(sum,sqrt_sum);
+        printDebugInfo(sqrt_sum,NULL,__func__ ,__LINE__,"平方根之后的数值");
+        BN_sub(tmp,sqrt_sum,t);
+        BN_mul(sum,tmp,tmp,CTX);
+        printDebugInfo(sum,NULL,__func__ ,__LINE__,"-tao的数值");
+        et_Share(req->range[i][0],sum);
+
+        // 加法的时候为了扩大给sqrt_sum加1
+        BN_add_word(sqrt_sum,1);
+        BN_add(tmp,sqrt_sum,t);
+        BN_mul(sum,tmp,tmp,CTX);
+        printDebugInfo(sum,NULL,__func__ ,__LINE__,"+tao的数值");
+
+        et_Share(req->range[i][1],sum);
+
     }
-    free_eTPSS(&tmp);
-    free_eTPSS(&tmp2);
-    free_eTPSS(&sum);
+    BN_clear(tmp);
+    BN_clear(tmp2);
+    BN_clear(sum);
+    BN_clear(t);
+    BN_clear(sqrt_sum);
+    for(int i = 0 ; i < ddim ; ++i){
+        BN_clear(de_y_data[i]);
+    }
 
     /*---------------设置数据resp----------------*/
     resp->root = resp->now = NULL;

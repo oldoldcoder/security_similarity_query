@@ -111,8 +111,9 @@ RESULT RSQ_generate_k_ref_points(SSQ_data  * kArr,int k,int dim){
         kArr->total_data[i]->dim = dim;
         // 分配内存空间
         kArr->total_data[i]->single_data = (BIGNUM **) malloc(dim * sizeof (BIGNUM *));
-        kArr->total_data[i]->en_data = (eTPSS **) malloc(sizeof (eTPSS *) * dim);
-        if(kArr->total_data[i] == NULL || kArr->total_data[i]->single_data == NULL || kArr->total_data[i]->en_data == NULL){
+        // TODO kArr_en_Data不需要加密
+        // kArr->total_data[i]->en_data = (eTPSS **) malloc(sizeof (eTPSS *) * dim);
+        if(kArr->total_data[i] == NULL || kArr->total_data[i]->single_data == NULL){
             fprintf(stderr,"Memory allocation failed.\n");
             return ERROR;
         }
@@ -127,16 +128,6 @@ RESULT RSQ_generate_k_ref_points(SSQ_data  * kArr,int k,int dim){
         }
     }
 
-    /*------------------加密数据后续计算范围使用------------------*/
-    for(int i = 0 ; i < kArr->n ; ++i){
-        for(int j = 0 ; j < kArr->dim ; ++j){
-            eTPSS * t = (eTPSS *) malloc(sizeof (eTPSS));
-            init_eTPSS(t);
-            et_Share(t,kArr->total_data[i]->single_data[j]);
-            // 放入我们的en_data
-            kArr->total_data[i]->en_data[j] = t;
-        }
-    }
 
     BN_clear(RANGE);
     BN_clear(n);

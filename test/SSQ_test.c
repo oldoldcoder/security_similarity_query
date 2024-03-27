@@ -23,12 +23,23 @@ int main(){
     // 计算vi向量的集合
     v_data ** vd = (v_data **) malloc(sizeof (v_data) * data.n);
     RSQ_compute_vi(vd,&data,&kArr);
+
+    // 打印vd的所有数据
+    for(int i = 0 ; i <data.n ; ++i){
+        printf("目前是第%d个vd的点:",i);
+        for(int j = 0 ; j < vd[i]->dim ; ++j){
+            char * str = BN_bn2dec(vd[i]->val[j]);
+            printf(" %s",str);
+        }
+        printf("\n");
+    }
+    fflush(stdout);
     /**-------------------构建树------------------*/
     int dn = data.n;
     int ddim = data.dim;
     int kn = kArr.n;
     kd_tree tree;
-    kdtree_init(&tree,kn,dn);
+    kdtree_init(&tree,kn);
     // 创建树
     kdtree_create(tree.root,vd,dn,kn,0,0,dn - 1);
     // 加密树
