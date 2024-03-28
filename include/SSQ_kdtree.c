@@ -132,8 +132,7 @@ RESULT kdtree_create(tree_node * node,v_data ** total,int n,int dim,int dir,int 
 }
 // 销毁树
 RESULT kdtree_destory_tree(kd_tree * tree){
-    // 后续再做
-    // TODO 执行树的销毁
+
     return SUCCESS;
 }
 static void kdtree_encode_node(tree_node * node){
