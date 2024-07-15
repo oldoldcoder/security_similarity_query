@@ -3,8 +3,8 @@
 /**----------------------定义常用的常量-------------------------*/
 #include "eTPSS.h"
 #include "openssl/bn.h"
-#define SUCCESS 15465
-#define ERROR 234564
+#define SUCCESS 1
+#define ERROR 0
 #define TRUE 1
 #define FALSE 0
 #define RESULT int
@@ -20,7 +20,7 @@
 // 数据路径
 #define SSQ_DATA_FILE "/root/heqi/encryption_algorithm/ssq/data/SSQ_data_file.txt"
 
-void printDebugInfo(BIGNUM * res,eTPSS * et,const char * funcName,int line,char * paramName);
+void printDebugInfo(BIGNUM* res, eTPSS* et, const char* funcName, int line, char* paramName);
 // 牛顿法迭代开平方
 
-void sqrt_bignum(const BIGNUM *num,BIGNUM * x);
+void sqrt_bignum(const BIGNUM* num, BIGNUM* x);

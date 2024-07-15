@@ -23,6 +23,13 @@
 #else
 #define EXPORT_SYMBOL __attribute__((visibility("default")))
 #endif
+
+#if defined(_WIN32)
+#include <direct.h>
+#define mkdir _mkdir
+#else
+#include <sys/types.h>
+#endif
 /*-----------------------------------*/
 typedef struct {
 	BIGNUM* x;

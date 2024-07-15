@@ -8,8 +8,13 @@
 #include "string.h"
 /**------------------------方法的实现---------------------------*/
 // 读取数据
-RESULT RSQ_read_data(SSQ_data * data){
-    FILE  * file = fopen(SSQ_DATA_FILE,"r");
+RESULT RSQ_read_data(SSQ_data * data,char * dataFilePath){
+    FILE  * file;
+    if(dataFilePath != NULL){
+        file = fopen(dataFilePath,"r");
+    }else{
+        file = fopen(SSQ_DATA_FILE,"r");
+    }
     if(file == NULL){
         perror("Error opening file");
         return ERROR;

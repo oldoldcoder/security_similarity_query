@@ -35,9 +35,10 @@ typedef struct {
     // 加密之后的xi点
     eTPSS ** en_xi;
 }v_data;
+
 /*----------------读取数据的方法定义-------------------*/
 // 读取数据
-RESULT RSQ_read_data(SSQ_data * data);
+RESULT RSQ_read_data(SSQ_data * data,char * dataFilePath);
 // 释放数据
 RESULT RSQ_free_data(SSQ_data * data);
 // 随机生成K个参考点

@@ -6,6 +6,68 @@
 #include "SSQ.h"
 #include "SSQ_kdtree.h"
 
+
+EXPORT_SYMBOL RESULT init_algo(char* dataFilePath, SSQ_data* data, kd_tree* tree, SSQ_data* kArr) {
+	// 初始化常量
+	initialize_Constant();
+	// 读取数据
+	if (RSQ_read_data(data, dataFilePath) != SUCCESS) {
+		return ERROR;
+	}
+	if (RSQ_generate_k_ref_points(kArr, K, data->dim) != SUCCESS) {
+		return ERROR;
+	}
+	// 计算vi向量的集合
+	v_data** vd = (v_data**)malloc(sizeof(v_data) * data->n);
+	if (RSQ_compute_vi(vd, data, kArr) != SUCCESS) {
+		return ERROR;
+	}
+	int dn = data->n;
+	int ddim = data->dim;
+	int kn = kArr->n;
+	if (kdtree_init(tree, kn) != SUCCESS) {
+		return ERROR;
+	}
+	// 创建树
+	if (kdtree_create(tree->root, vd, dn, kn, 0, 0, dn - 1) != SUCCESS) {
+		return ERROR;
+	}
+	// 加密树
+	if (kdtree_upload_server(tree) != SUCCESS) {
+		return ERROR;
+	}
+	// 释放数据 TODO vd这里目前释放没有出现任何问题，暂时可以定义为可以尝试释放，ok
+	if (RSQ_free_vi(vd, data->n) != SUCCESS) {
+		return ERROR;
+
+	}
+	return SUCCESS;
+}
+
+
+EXPORT_SYMBOL RESULT query_algo(SSQ_data* data, kd_tree* tree, SSQ_data* kArr, char* queryFilePath, char* resultFilePath) {
+	search_req req;
+	search_resp resp;
+	// 初始化查询的参数，计算范围查询的令牌
+
+	if (kdtree_init_search(&req, &resp, kArr, queryFilePath, data->dim, kArr->n) != SUCCESS)
+		return ERROR;
+	// 进行查询
+	if (kdtree_range_search(tree, &req, &resp) != SUCCESS)
+		return ERROR;
+	// change the logic of writing result-files
+	if (kdtree_tsf_resp_to_file(&req, &resp, resultFilePath) != SUCCESS)
+		return ERROR;
+
+	kdtree_free_search_param(&req, &resp);
+	return SUCCESS;
+}
+EXPORT_SYMBOL RESULT free_algo(SSQ_data* data, kd_tree* tree, SSQ_data* kArr) {
+	// free memory
+	RSQ_free_data(kArr);
+	RSQ_free_data(data);
+	kdtree_destory_tree(tree->root);
+}
 /**----------------------方法实现-----------------------*/
 static void swap_v_data(v_data** data, int i, int j) {
 	v_data* t = data[i];
@@ -76,8 +138,17 @@ RESULT kdtree_create(tree_node* node, v_data** total, int n, int dim, int dir, i
 	if (node->divide_val == NULL) {
 		node->divide_val = BN_CTX_get(CTX);
 	}
+	char* result_str = BN_bn2dec(tmp);
+
+	printf("\n%s", result_str);
+	result_str = BN_bn2dec(sum);
+	printf("\n%s", result_str);
+	fflush(stdout);
+
 	// 计算得到的分割值
 	BN_div(node->divide_val, NULL, sum, tmp, CTX);
+	result_str = BN_bn2dec(node->divide_val);
+	printf("\n%s", result_str);
 	// debug
 	printDebugInfo(node->divide_val, NULL, __func__, __LINE__, "the value of spliting divide");
 
@@ -116,7 +187,18 @@ RESULT kdtree_create(tree_node* node, v_data** total, int n, int dim, int dir, i
 	 * idxR此刻指向的位置是下一次切分的中点
 	 * 目前需要填充当前内部节点的数据
 	 * */
-	kdtree_node_init(node, FALSE, node->divide_dim, node->divide_val, dim, dir, (tree_node*)malloc(sizeof(tree_node)), (tree_node*)malloc(sizeof(tree_node)));
+	tree_node* left = (tree_node*)malloc(sizeof(tree_node));
+	kdtree_node_init(left, FALSE, -1, NULL, dim, dir + 1, NULL, NULL);
+	tree_node* right = (tree_node*)malloc(sizeof(tree_node));
+	kdtree_node_init(right, FALSE, -1, NULL, dim, dir + 1, NULL, NULL);
+	// 空闲出来给left和right的data_root赋空值
+	left->data_root = NULL;
+	left->data_root = NULL;
+	right->data_root = NULL;
+	right->data_now = NULL;
+
+
+	kdtree_node_init(node, FALSE, node->divide_dim, node->divide_val, dim, dir, left, right);
 
 	if (node->left == NULL || node->right == NULL) {
 		fprintf(stderr, "Memory allocation failed.\n");
@@ -134,8 +216,42 @@ RESULT kdtree_create(tree_node* node, v_data** total, int n, int dim, int dir, i
 	return SUCCESS;
 }
 // 销毁树
-RESULT kdtree_destory_tree(kd_tree* tree) {
+RESULT kdtree_destory_tree(tree_node* root) {
+	/*
+	销毁思路如下所示：
+	递归销毁，然后是叶子节点需要清除一个链表，非叶子节点需要清除里面的分割的数值
+	*/
+	if (root->is_leaf_node == TRUE) {
+		leaf_val* temp = root->data_root;
+		while (temp != NULL) {
+			leaf_val* a = temp->val;
+			// 释放掉这个temp,关键是v_data不知道是否使用了ssq_data的值
+			int dim = temp->val->dim;
+			// TODO 可能二次释放
+			free(temp->val->val);
+			for (int i = 0; i < dim; ++i)
+				free_eTPSS(temp->val->en_val[i]);
+			temp = a;
+		}
+	}
+	else {
+		// 非叶子节点释放分割值
+		int dim = root->dim;
+		for (int i = 0; i < dim; ++i) {
+			free_eTPSS(root->en_divide_dim[i]);
+		}
+		free_eTPSS(root->en_divide_val);
+	}
 
+	if (
+		root->left == NULL)
+		kdtree_destory_tree(
+			root->left);
+	if (
+		root->right == NULL)
+		kdtree_destory_tree(
+			root->right);
+	free(root);
 	return SUCCESS;
 }
 static void kdtree_encode_node(tree_node* node) {
@@ -157,7 +273,6 @@ static void kdtree_encode_node(tree_node* node) {
 				init_eTPSS(a);
 				et_Share(a, da->val[i]);
 				da->en_val[i] = a;
-				;
 			}
 			for (int i = 0; i < xi_dim; ++i) {
 				eTPSS* b = (eTPSS*)malloc(sizeof(eTPSS));
@@ -200,8 +315,14 @@ RESULT kdtree_upload_server(kd_tree* tree) {
 	return SUCCESS;
 }
 // 初始化查询的参数
-RESULT kdtree_init_search(search_req* req, search_resp* resp, SSQ_data* kArr, int ddim, int kn) {
-	FILE* file = fopen(RSQ_FILE_PATH, "r");
+RESULT kdtree_init_search(search_req* req, search_resp* resp, SSQ_data* kArr, char* queryFilePath, int ddim, int kn) {
+	FILE* file;
+	if (queryFilePath != NULL) {
+		file = fopen(queryFilePath, "r");
+	}
+	else {
+		file = fopen(RSQ_FILE_PATH, "r");
+	}
 	if (file == NULL) {
 		perror("Error opening file");
 		return ERROR;
@@ -460,8 +581,9 @@ RESULT kdtree_free_search_param(search_req* req, search_resp* resp) {
 	return SUCCESS;
 }
 // 转换参数到文件中去
-RESULT kdtree_tsf_resp_to_file(search_req* req, search_resp* resp) {
-	FILE* file = fopen(RESP_FILE_PATH, "w");
+RESULT kdtree_tsf_resp_to_file(search_req* req, search_resp* resp, char* resultPath) {
+
+	FILE* file = fopen(resultPath, "w");
 	if (file == NULL) {
 		perror("Error opening file");
 		return ERROR;
@@ -493,5 +615,6 @@ RESULT kdtree_tsf_resp_to_file(search_req* req, search_resp* resp) {
 	}
 	// 关闭文件
 	fclose(file);
+
 	return SUCCESS;
 }
