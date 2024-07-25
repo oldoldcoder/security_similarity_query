@@ -12,7 +12,7 @@
 // 首先是吃进去数据的结构定义
 typedef struct {
     int dim;
-    BIGNUM ** single_data;
+    BIGNUM  ** single_data;
     // kArr需要使用
     eTPSS ** en_data;
 }dim_data;

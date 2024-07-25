@@ -49,7 +49,7 @@ extern BIGNUM* RANDOM_RANGE;
 extern BIGNUM* ZERO;
 extern BIGNUM* ONE;
 
-size_t getline(char** lineptr, size_t* n, FILE* stream);
+//size_t getline(char** lineptr, size_t* n, FILE* stream);
 
 /*
  * @desc:初始化MOD的值

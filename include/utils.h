@@ -10,7 +10,7 @@
 #define RESULT int
 // 定义生成参考点的数量
 #define K 4
-#define LEAF_NODE_MAX_CAP 1
+#define LEAF_NODE_MAX_CAP 10
 // 随机的范围
 
 // 定义范围查询的路径

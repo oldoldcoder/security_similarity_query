@@ -22,7 +22,7 @@ static BIGNUM* rand_array[3];
 
 /**getline to solve problem*/
 
-size_t getline(char** lineptr, size_t* n, FILE* stream) {
+/*size_t getline(char** lineptr, size_t* n, FILE* stream) {
 
 	char* bufptr = NULL;
 	char* p = bufptr;
@@ -70,7 +70,7 @@ size_t getline(char** lineptr, size_t* n, FILE* stream) {
 	*n = size;
 
 	return p - bufptr;
-}
+}*/
 
 EXPORT_SYMBOL int initialize_Constant() {
 

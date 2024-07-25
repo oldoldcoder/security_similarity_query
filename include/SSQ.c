@@ -35,7 +35,8 @@ RESULT RSQ_read_data(SSQ_data * data,char * dataFilePath){
         data->total_data[i] = (dim_data *) malloc(sizeof (dim_data));
         data->total_data[i]->dim = dim;
         // 分配内存空间
-        data->total_data[i]->single_data = (BIGNUM **) malloc(dim * sizeof (BIGNUM *));
+        data->total_data[i]->single_data = (BIGNUM **) malloc(dim * sizeof (BIGNUM  *));
+
         if(data->total_data[i] == NULL || data->total_data[i]->single_data == NULL ){
             fprintf(stderr,"Memory allocation failed.\n");
             return ERROR;

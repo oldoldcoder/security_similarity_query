@@ -59,7 +59,7 @@ EXPORT_SYMBOL RESULT query_algo(SSQ_data* data, kd_tree* tree, SSQ_data* kArr, c
 	if (kdtree_tsf_resp_to_file(&req, &resp, resultFilePath) != SUCCESS)
 		return ERROR;
 
-	kdtree_free_search_param(&req, &resp);
+	//kdtree_free_search_param(&req, &resp);
 	return SUCCESS;
 }
 EXPORT_SYMBOL RESULT free_algo(SSQ_data* data, kd_tree* tree, SSQ_data* kArr) {
@@ -122,10 +122,12 @@ RESULT kdtree_create(tree_node* node, v_data** total, int n, int dim, int dir, i
 		// 结构体不需要再给其他的赋值，我们直接返回SUCCESS
 		return SUCCESS;
 	}
+    BN_CTX * tempCtx = BN_CTX_new();
+    BN_CTX_start(tempCtx);
 
 	// 获取切割的维度
 	node->divide_dim = (dir + 1) % dim;
-	BIGNUM* sum = BN_CTX_get(CTX);
+	BIGNUM* sum = BN_CTX_get(tempCtx);
 	BN_set_word(sum, 0);
 	// 计算切割维度的平均值
 	for (int i = idx_lef; i <= idx_rig; ++i) {
@@ -133,24 +135,19 @@ RESULT kdtree_create(tree_node* node, v_data** total, int n, int dim, int dir, i
 		BN_add(sum, sum, total[i]->val[node->divide_dim]);
 	}
 
-	BIGNUM* tmp = BN_CTX_get(CTX);
+	BIGNUM* tmp = BN_CTX_get(tempCtx);
 	BN_set_word(tmp, idx_rig - idx_lef + 1);
 	if (node->divide_val == NULL) {
-		node->divide_val = BN_CTX_get(CTX);
+		node->divide_val = BN_new();
 	}
-	char* result_str = BN_bn2dec(tmp);
 
-	printf("\n%s", result_str);
-	result_str = BN_bn2dec(sum);
-	printf("\n%s", result_str);
-	fflush(stdout);
+    fflush(stdout);
+    // 计算得到的分割值
+	BN_div(node->divide_val, NULL, sum, tmp, tempCtx);
 
-	// 计算得到的分割值
-	BN_div(node->divide_val, NULL, sum, tmp, CTX);
-	result_str = BN_bn2dec(node->divide_val);
-	printf("\n%s", result_str);
+
 	// debug
-	printDebugInfo(node->divide_val, NULL, __func__, __LINE__, "the value of spliting divide");
+	// printDebugInfo(node->divide_val, NULL, __func__, __LINE__, "the value of spliting divide");
 
 	int idxL = idx_lef, idxR = idx_rig;
 	while (idxL <= idxR) {
@@ -211,8 +208,8 @@ RESULT kdtree_create(tree_node* node, v_data** total, int n, int dim, int dir, i
 	if (kdtree_create(node->right, total, idx_rig - idxL + 1, dim, dir + 1, idxL, idx_rig) != SUCCESS) {
 		return ERROR;
 	}
-	BN_clear(tmp);
-	BN_clear(sum);
+    BN_CTX_end(tempCtx);
+    BN_CTX_free(tempCtx);
 	return SUCCESS;
 }
 // 销毁树
@@ -397,20 +394,20 @@ RESULT kdtree_init_search(search_req* req, search_resp* resp, SSQ_data* kArr, ch
 			BN_mul(tmp2, tmp, tmp, CTX);
 			BN_add(sum, sum, tmp2);
 		}
-		printDebugInfo(sum, NULL, __func__, __LINE__, "未平方根之前的值");
+		//printDebugInfo(sum, NULL, __func__, __LINE__, "未平方根之前的值");
 		// 计算减法的平方
 		sqrt_bignum(sum, sqrt_sum);
-		printDebugInfo(sqrt_sum, NULL, __func__, __LINE__, "平方根之后的数值");
+		//printDebugInfo(sqrt_sum, NULL, __func__, __LINE__, "平方根之后的数值");
 		BN_sub(tmp, sqrt_sum, t);
 		BN_mul(sum, tmp, tmp, CTX);
-		printDebugInfo(sum, NULL, __func__, __LINE__, "-tao的数值");
+		//printDebugInfo(sum, NULL, __func__, __LINE__, "-tao的数值");
 		et_Share(req->range[i][0], sum);
 
 		// 加法的时候为了扩大给sqrt_sum加1
 		BN_add_word(sqrt_sum, 1);
 		BN_add(tmp, sqrt_sum, t);
 		BN_mul(sum, tmp, tmp, CTX);
-		printDebugInfo(sum, NULL, __func__, __LINE__, "+tao的数值");
+		//printDebugInfo(sum, NULL, __func__, __LINE__, "+tao的数值");
 
 		et_Share(req->range[i][1], sum);
 
@@ -444,13 +441,13 @@ static int judge_direct(eTPSS** dim_vector, eTPSS* divide_val, eTPSS*** range, i
 	init_eTPSS(&sum);
 	init_eTPSS(&tmp);
 	et_Share(&sum, ZERO);
-	printDebugInfo(NULL, divide_val, __func__, __LINE__, "divide val的数值");
+	//printDebugInfo(NULL, divide_val, __func__, __LINE__, "divide val的数值");
 	for (int i = 0; i < dim; ++i) {
 		et_Mul(&tmp, dim_vector[i], range[i][0]);
 		et_Add(&sum, &sum, &tmp);
 	}
 
-	printDebugInfo(NULL, &sum, __func__, __LINE__, "最小值的加和");
+	//printDebugInfo(NULL, &sum, __func__, __LINE__, "最小值的加和");
 	// 判断大小
 	et_Sub(&res1, divide_val, &sum);
 	et_Share(&sum, ZERO);
@@ -459,7 +456,7 @@ static int judge_direct(eTPSS** dim_vector, eTPSS* divide_val, eTPSS*** range, i
 		et_Add(&sum, &sum, &tmp);
 	}
 
-	printDebugInfo(NULL, &sum, __func__, __LINE__, "最大值的加和");
+	//printDebugInfo(NULL, &sum, __func__, __LINE__, "最大值的加和");
 	et_Sub(&res2, divide_val, &sum);
 	if (res1 == 0 && res2 == 0)
 		return 1;
